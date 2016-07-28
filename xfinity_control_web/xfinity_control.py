@@ -23,12 +23,12 @@ class XfinityControl(object):
     PROFILE_TOKEN_LENGTH = 32
 
     def __init__(self, username, password):
-        self.username = username
-        self.password = password
-        self.auth_cookies = self._login()
-        self.profile = self._get_profile()
-        self.default_device_key = self.profile['UnifiedVal']['udf']['devices'][0]['rtune']['deviceKey']
-        self.token = self._get_token()
+        self._username = username
+        self._password = password
+        self._auth_cookies = self._login()
+        self._profile = self._get_profile()
+        self._default_device_key = self._profile['UnifiedVal']['udf']['devices'][0]['rtune']['deviceKey']
+        self._token = self._get_token()
         super(XfinityControl, self).__init__()
 
     def _login(self):
@@ -39,8 +39,8 @@ class XfinityControl(object):
         login_request = requests.post(
             XfinityControl.LOGIN_URL,
             data={
-                "user": self.username,
-                "passwd": self.password
+                "user": self._username,
+                "passwd": self._password
             },
             cookies=cookie_request.cookies,
             allow_redirects=False,
@@ -53,9 +53,9 @@ class XfinityControl(object):
         profile_request = requests.get(
             XfinityControl.PROFILE_API,
             params={
-                "p": self.auth_cookies["s_ticket"][:XfinityControl.PROFILE_TOKEN_LENGTH]
+                "p": self._auth_cookies["s_ticket"][:XfinityControl.PROFILE_TOKEN_LENGTH]
             },
-            cookies=self.auth_cookies,
+            cookies=self._auth_cookies,
         )
         if profile_request.status_code != 200:
             raise XfinityApiException("Unexpected profile API response.")
@@ -64,19 +64,26 @@ class XfinityControl(object):
     def _get_token(self):
         token_request = requests.get(
             XfinityControl.TOKEN_API,
-            cookies=self.auth_cookies,
+            cookies=self._auth_cookies,
         )
         if token_request.status_code != 200:
             raise XfinityApiException("Unexpected token API response.")
         return token_request.text
 
-    def change_channel(self, param):
+    def _refresh_token(self):
+        self._auth_cookies = self._login()
+        self._token = self._get_token()
+
+    def change_channel(self, channel, retries_remaining=1):
         change_channel_request = requests.post(
-            XfinityControl.CHANNEL_API % (self.default_device_key, param),
+            XfinityControl.CHANNEL_API % (self._default_device_key, channel),
             headers={
-                "X-CIM-RT-Authorization": self.token
+                "X-CIM-RT-Authorization": self._token
             },
-            cookies=self.auth_cookies,
+            cookies=self._auth_cookies,
         )
-        if change_channel_request.status_code != 200:
+        if change_channel_request.status_code == 401 and retries_remaining > 0:
+            self._refresh_token()
+            self.change_channel(channel, retries_remaining - 1)
+        elif change_channel_request.status_code != 200:
             raise XfinityApiException("Unexpected channel API response.")

@@ -1,4 +1,5 @@
 import os
+import json
 from BaseHTTPServer import BaseHTTPRequestHandler, HTTPServer
 from SocketServer import BaseRequestHandler
 from xfinity_control_web.xfinity_control import XfinityApiException
@@ -28,7 +29,10 @@ def XfinityRequestHandler(xfinity_control):
                 content_len = int(self.headers.getheader('content-length', 0))
                 post_body = self.rfile.read(content_len)
                 try:
-                    self.xfinity_control.change_channel(int(post_body))
+                    try:
+                        self.xfinity_control.change_channel(int(post_body))
+                    except ValueError:
+                        raise XfinityApiException("Invalid channel number.")
                     self.send_response(200)
                     self.send_header('Content-type', 'text/html')
                     self.end_headers()
@@ -50,7 +54,10 @@ def XfinityRequestHandler(xfinity_control):
                 self.send_header('Content-type', 'text/html')
                 self.end_headers()
                 with open(os.path.join(os.path.dirname(os.path.dirname(__file__)), 'index.html'), "r") as index:
-                    self.wfile.write(index.read())
+                    self.wfile.write(index.read().replace(
+                        "var channelMap = {}",
+                        "var channelMap = " + json.dumps(self.xfinity_control.channel_map))
+                    )
             else:
                 self.send_response(404)
                 self.send_header('Content-type', 'text/html')

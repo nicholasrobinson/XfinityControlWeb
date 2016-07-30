@@ -17,7 +17,32 @@
     </style>
 </head>
 <body>
+<div id="container">
+    <table>
+        <tr>
+            <th>Enter Channel</th>
+            <td>
+                <input placeholder="Enter Channel Name or #" list="channels" id="channel" onkeydown="if (event.keyCode == 13) { sendChannelCommand(document.getElementById('channel').value); }" />
+                <datalist id="channels">
+                </datalist>
+                <button id="send_button" onclick="sendChannelCommand(document.getElementById('channel').value)">Send</button>
+            </td>
+        </tr>
+        <tr>
+            <th>Server Response</th>
+            <td><input id="command_response" type="text" size="50" readonly></td>
+        </tr>
+    </table>
+</div>
 <script type="text/javascript">
+    var channelMap = {};
+    var channels = document.getElementById("channels");
+    for (var channel in channelMap) {
+        var option = document.createElement("option");
+        option.value = channel;
+        channels.appendChild(option);
+    }
+
     function sendChannelCommand(channel) {
         var xhttp = new XMLHttpRequest();
         xhttp.onreadystatechange = function() {
@@ -32,52 +57,8 @@
         };
         xhttp.open("POST", "/", true);
         xhttp.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
-        xhttp.send(channel);
+        xhttp.send(channel in channelMap ? channelMap[channel] : channel);
     }
 </script>
-<div id="container">
-    <table>
-        <tr>
-            <th>Enter Channel</th>
-            <td>
-                <input id="channel" type="text" onkeydown="if (event.keyCode == 13) { sendChannelCommand(document.getElementById('channel').value); }" />
-                <button id="send_button" onclick="sendChannelCommand(document.getElementById('channel').value)">Send</button>
-            </td>
-        </tr>
-        <tr>
-                <th>Server Response</th>
-                <td><input id="command_response" type="text" size="50" readonly></td>
-        </tr>
-        <tr>
-            <th>Note</th>
-            <td>
-                <small>
-                    <table>
-                        <tr>
-                            <th>Channel</th>
-                            <th>Number</th>
-                        </tr>
-                        <tr>
-                            <td>On Demand</td>
-                            <td>1</td>
-                        </tr>
-                        <tr>
-                            <td>Fox</td>
-                            <td>2</td>
-                        </tr>
-                        <tr>
-                            <td>NBC</td>
-                            <td>3</td>
-                        </tr>
-                        <tr>
-                            <td>CNN</td>
-                            <td>56</td>
-                        </tr>
-                    </table>
-                </small>
-            </td>
-        </tr>
-    </table>
-</div>
 </body>
 </html>

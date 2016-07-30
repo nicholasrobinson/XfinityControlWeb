@@ -19,6 +19,7 @@ class XfinityControl(object):
     PROFILE_API = API_PREFIX + "/xtv/authkey/user"
     TOKEN_API = API_PREFIX + "/xip/fc-rproxy/rtune/authtoken"
     CHANNEL_API = API_PREFIX + "/xip/fc-rproxy/rtune/device/%s/tune/tv/vcn/%s"
+    LISTING_API = API_PREFIX + "/xfinityapi/channel/lineup/headend/%s/"
 
     PROFILE_TOKEN_LENGTH = 32
 
@@ -28,7 +29,13 @@ class XfinityControl(object):
         self._auth_cookies = self._login()
         self._profile = self._get_profile()
         self._default_device_key = self._profile['UnifiedVal']['udf']['devices'][0]['rtune']['deviceKey']
+        self._headend = self._profile["UnifiedVal"]["uisTvPrefs"]["rovi"]["headend"]
+        self._default_lineup = self.get_lineup()
         self._token = self._get_token()
+        self.channel_map = {
+            x["_embedded"]["station"]["shortName"]: x["number"]
+            for x in self._default_lineup["_embedded"]["channels"]
+        }
         super(XfinityControl, self).__init__()
 
     def _login(self):
@@ -87,3 +94,12 @@ class XfinityControl(object):
             self.change_channel(channel, retries_remaining - 1)
         elif change_channel_request.status_code != 200:
             raise XfinityApiException("Unexpected channel API response.")
+
+    def get_lineup(self):
+        lineup_request = requests.get(
+            XfinityControl.LISTING_API % self._headend,
+            cookies=self._auth_cookies,
+        )
+        if lineup_request.status_code != 200:
+            raise XfinityApiException("Unexpected profile API response.")
+        return lineup_request.json()
